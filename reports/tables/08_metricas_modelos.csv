@@ -1,0 +1,5 @@
+modelo,MAE,RMSE,WMAPE
+M0 — Naïve Sazonal,8.82,26.88,34.54
+M1 — Linear Global OLS,6.09,14.4,23.84
+M2 — Ensemble (α=0.0),6.09,14.4,23.84
+M3 — LightGBM,5.88,15.57,23.04

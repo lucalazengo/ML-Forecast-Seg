@@ -1,0 +1,50 @@
+# ============================================
+# ML-Forecast-Seg .gitignore
+# ============================================
+
+# --- Python ---
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Data (arquivos pesados ~1.2GB) ---
+data/raw/
+data/processed/
+
+# --- Node.js ---
+node_modules/
+.next/
+
+# --- Reports (HTMLs interativos pesados ~67MB) ---
+reports/images/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Logs ---
+*.log
+npm-debug.log*
+
+# --- Agent config ---
+.agent/
+
+# --- Misc ---
+*.tmp
+*.bak

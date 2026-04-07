@@ -1,0 +1,34 @@
+{
+  "etapa": "Data Preparation (Fase 3 CRISP-DM)",
+  "granularidade": "Mensal",
+  "agrupadores": [
+    "COMARCA",
+    "SERVENTIA"
+  ],
+  "target": "novos_casos",
+  "split": {
+    "treino": "2017-2023",
+    "teste": "2024",
+    "treino_registros": 94560,
+    "teste_registros": 18912
+  },
+  "features": [
+    "lag_1",
+    "lag_2",
+    "lag_3",
+    "lag_6",
+    "lag_12",
+    "rolling_mean_3",
+    "rolling_mean_6",
+    "rolling_mean_12",
+    "rolling_std_3",
+    "mes_do_ano",
+    "trimestre",
+    "is_recesso",
+    "is_pandemia",
+    "mes_sin",
+    "mes_cos",
+    "area_civel"
+  ],
+  "feature_count": 16
+}

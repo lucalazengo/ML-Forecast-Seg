@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  data-updater:
+    image: python:3.9-slim
+    container_name: tjgo-data-updater
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install pandas && python src/export_dashboard_data.py"
+    profiles:
+      - update
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: tjgo-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

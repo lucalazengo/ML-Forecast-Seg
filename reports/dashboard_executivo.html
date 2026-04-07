@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TJGO — Dashboard de Previsão de Novos Casos | ML-Forecast-Seg</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f0f2f5;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, #0d47a1 0%, #1a73e8 60%, #1565c0 100%);
+      color: white;
+      padding: 36px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -80px; left: 40%;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .header-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      letter-spacing: 0.5px;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      font-size: 15px;
+      opacity: 0.85;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+    .header-meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .header-meta span {
+      font-size: 12px;
+      opacity: 0.75;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Main content ────────────────────────── */
+    .main { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Section ─────────────────────────────── */
+    .section { margin-bottom: 40px; }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0d47a1;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e8f0fd;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px; height: 22px;
+      background: linear-gradient(to bottom, #1a73e8, #0d47a1);
+      border-radius: 2px;
+    }
+
+    /* ── KPI grid ────────────────────────────── */
+    .kpi-grid {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Chart cards ─────────────────────────── */
+    .chart-card {
+      background: white;
+      border-radius: 16px;
+      padding: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      margin-bottom: 20px;
+    }
+    .chart-row { display: grid; gap: 20px; }
+    .chart-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .chart-row.cols-1 { grid-template-columns: 1fr; }
+
+    /* ── Evaluation section ──────────────────── */
+    .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── Table ───────────────────────────────── */
+    .table-wrapper {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    .table-header {
+      background: linear-gradient(135deg, #0d47a1, #1a73e8);
+      color: white;
+      padding: 16px 20px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #f8f9fa;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
+    thead th:nth-child(5) { text-align: center; }
+    tbody tr:hover { background: #f8f9fa; }
+
+    /* ── Footer ──────────────────────────────── */
+    .footer {
+      background: #0d47a1;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      padding: 28px;
+      font-size: 13px;
+      line-height: 1.8;
+      margin-top: 40px;
+    }
+    .footer strong { color: white; }
+
+    /* ── Responsive ──────────────────────────── */
+    @media (max-width: 900px) {
+      .chart-row.cols-2 { grid-template-columns: 1fr; }
+      .eval-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 22px; }
+      .header { padding: 24px; }
+      .main { padding: 20px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-badge">⚖️ TJGO — RESIDÊNCIA EM TI | CRISP-DM: Fase 5</div>
+  <h1>Dashboard de Previsão de Novos Casos Judiciais</h1>
+  <p>Análise exploratória e validação do modelo preditivo de séries temporais para planejamento
+  e alocação estratégica de recursos no Tribunal de Justiça do Estado de Goiás.</p>
+  <div class="header-meta">
+    <span>📅 Período de Treino: 2015–2023</span>
+    <span>🔍 Validação Out-of-Time: 2024</span>
+    <span>🏛️ Cobertura: 119 Comarcas · 1.579 Serventias</span>
+    <span>🤖 Modelo: Regressão Linear Global OLS (v1)</span>
+    <span>⏱️ Granularidade: Mensal</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── KPIs ─────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Indicadores Estratégicos</div>
+    <div class="kpi-grid">
+      
+<div style="background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border-top:4px solid #1a73e8;min-width:180px;flex:1;">
+  <div style="font-size:28px;margin-bottom:6px;">📈</div>
+  <div style="font-size:28px;font-weight:700;color:#1a73e8;letter-spacing:-1px;">483,929</div>
+  <div style="font-size:13px;font-weight:600;color:#333;margin-top:4px;">Total de Casos em 2024</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">Crescimento de +13.6% vs 2023</div>
+</div>
+<div style="background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border-top:4px solid #34a853;min-width:180px;flex:1;">
+  <div style="font-size:28px;margin-bottom:6px;">🎯</div>
+  <div style="font-size:28px;font-weight:700;color:#34a853;letter-spacing:-1px;">23.84%</div>
+  <div style="font-size:13px;font-weight:600;color:#333;margin-top:4px;">WMAPE do Modelo</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">Erro ponderado no conjunto de teste</div>
+</div>
+<div style="background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border-top:4px solid #1a73e8;min-width:180px;flex:1;">
+  <div style="font-size:28px;margin-bottom:6px;">📏</div>
+  <div style="font-size:28px;font-weight:700;color:#1a73e8;letter-spacing:-1px;">6.1 casos</div>
+  <div style="font-size:13px;font-weight:600;color:#333;margin-top:4px;">MAE por Serventia</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">Erro médio absoluto por mês/serventia</div>
+</div>
+<div style="background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border-top:4px solid #9c27b0;min-width:180px;flex:1;">
+  <div style="font-size:28px;margin-bottom:6px;">🏛️</div>
+  <div style="font-size:28px;font-weight:700;color:#9c27b0;letter-spacing:-1px;">119</div>
+  <div style="font-size:13px;font-weight:600;color:#333;margin-top:4px;">Comarcas Cobertas</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">1,579 serventias modeladas</div>
+</div>
+<div style="background:#fff;border-radius:16px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border-top:4px solid #ff6d00;min-width:180px;flex:1;">
+  <div style="font-size:28px;margin-bottom:6px;">📂</div>
+  <div style="font-size:28px;font-weight:700;color:#ff6d00;letter-spacing:-1px;">3,266,293</div>
+  <div style="font-size:13px;font-weight:600;color:#333;margin-top:4px;">Acervo Histórico</div>
+  <div style="font-size:12px;color:#888;margin-top:2px;">Processos de 9 anos de dados</div>
+</div>
+    </div>
+  </div>
+
+  <!-- ── Evolução histórica ───────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Evolução Histórica</div>
+    <div class="chart-card">
+      <div>                            <div id="fig_yearly" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_yearly")) {                    Plotly.newPlot(                        "fig_yearly",                        [{"hovertemplate":"\u003cb\u003e%{x}\u003c\u002fb\u003e\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":{"dtype":"i4","bdata":"A2IEAJZ4BQDD8AMACyMFAPdABQCUzgUAKPYFAIKABgBZYgcA"},"colorscale":[[0.0,"rgb(247,251,255)"],[0.125,"rgb(222,235,247)"],[0.25,"rgb(198,219,239)"],[0.375,"rgb(158,202,225)"],[0.5,"rgb(107,174,214)"],[0.625,"rgb(66,146,198)"],[0.75,"rgb(33,113,181)"],[0.875,"rgb(8,81,156)"],[1.0,"rgb(8,48,107)"]],"showscale":false},"text":["287,235\u003cbr\u003e\u003cspan style='font-size:11px;color:#ea4335'\u003e\u25bc0.0%\u003c\u002fspan\u003e","358,550\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b224.8%\u003c\u002fspan\u003e","258,243\u003cbr\u003e\u003cspan style='font-size:11px;color:#ea4335'\u003e\u25bc28.0%\u003c\u002fspan\u003e","336,651\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b230.4%\u003c\u002fspan\u003e","344,311\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b22.3%\u003c\u002fspan\u003e","380,564\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b210.5%\u003c\u002fspan\u003e","390,696\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b22.7%\u003c\u002fspan\u003e","426,114\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b29.1%\u003c\u002fspan\u003e","483,929\u003cbr\u003e\u003cspan style='font-size:11px;color:#34a853'\u003e\u25b213.6%\u003c\u002fspan\u003e"],"textposition":"outside","x":{"dtype":"i2","bdata":"3wfgB+EH4gfkB+UH5gfnB+gH"},"y":{"dtype":"i4","bdata":"A2IEAJZ4BQDD8AMACyMFAPdABQCUzgUAKPYFAIKABgBZYgcA"},"type":"bar"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"title":{"font":{"size":16},"text":"\u003cb\u003eEvolu\u00e7\u00e3o Hist\u00f3rica \u2014 Novos Casos por Ano (TJGO)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":12},"xaxis":{"title":{"text":""},"tickmode":"linear","dtick":1},"yaxis":{"title":{"text":"Total de Casos"},"gridcolor":"#f0f0f0"},"margin":{"l":60,"r":20,"t":60,"b":40},"height":380,"plot_bgcolor":"white","paper_bgcolor":"white"},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div>
+    </div>
+  </div>
+
+  <!-- ── Real vs Previsto ─────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Validação do Modelo — 2024</div>
+    <div class="chart-card">
+      <div>                            <div id="fig_rvp" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_rvp")) {                    Plotly.newPlot(                        "fig_rvp",                        [{"hovertemplate":"\u003cb\u003e%{x}\u003c\u002fb\u003e\u003cbr\u003eReal: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#1a73e8","width":3},"marker":{"size":9,"symbol":"circle"},"mode":"lines+markers","name":"Real","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i4","bdata":"aIQAABiRAADjmwAAfa0AAC6dAACvnQAAiKIAAOKoAAB7pwAAOasAAEqgAAA0igAA"},"type":"scatter"},{"hovertemplate":"\u003cb\u003e%{x}\u003c\u002fb\u003e\u003cbr\u003ePrevisto: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#e8711a","dash":"dash","width":3},"marker":{"size":9,"symbol":"diamond"},"mode":"lines+markers","name":"Previsto","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"f8","bdata":"zczMzGzo30BmZmZmhkThQDMzMzPTCOJAMzMzM0Nw4kCamZmZKbrkQAAAAADg7ORAAAAAABD040DNzMzMjITlQGZmZmZWfOVAZmZmZoaP5EAzMzMzMyjkQM3MzMw8juJA"},"type":"scatter"},{"fill":"toself","fillcolor":"rgba(232,113,26,0.08)","hoverinfo":"skip","line":{"color":"rgba(0,0,0,0)"},"name":"Intervalo \u00b110%","showlegend":true,"x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2024-12","2024-11","2024-10","2024-09","2024-08","2024-07","2024-06","2024-05","2024-04","2024-03","2024-02","2024-01"],"y":[35941.07000000001,38900.62,40628.060000000005,41538.310000000005,46694.23000000001,47140.50000000001,44950.950000000004,48475.240000000005,48402.97,46319.020000000004,45409.76,41802.090000000004,34201.71,37153.44,37897.38,39602.43,39661.560000000005,36778.05,38569.5,38204.37,33985.89,33241.14,31827.78,29406.33],"type":"scatter"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"title":{"font":{"size":16},"text":"\u003cb\u003eReal vs Previsto \u2014 2024 (Estado de Goi\u00e1s)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":12},"xaxis":{"title":{"text":""},"tickangle":-30},"yaxis":{"title":{"text":"Novos Casos \u002f M\u00eas"},"gridcolor":"#f0f0f0"},"legend":{"orientation":"h","y":1.12,"x":0},"margin":{"l":60,"r":20,"t":70,"b":50},"height":380,"plot_bgcolor":"white","paper_bgcolor":"white"},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div>
+    </div>
+  </div>
+
+  <!-- ── Top 5 mensais + Scatter ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Análise por Comarca</div>
+    <div class="chart-row cols-2">
+      <div class="chart-card"><div>                            <div id="fig_topmonth" class="plotly-graph-div" style="height:400px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_topmonth")) {                    Plotly.newPlot(                        "fig_topmonth",                        [{"hovertemplate":"\u003cb\u003eAn\u00e1polis\u003c\u002fb\u003e\u003cbr\u003eM\u00eas: %{x}\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"AN\u00c1POLIS","line":{"color":"rgb(127, 60, 141)","width":2},"marker":{"size":7},"mode":"lines+markers","name":"An\u00e1polis","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i2","bdata":"MwZPBuQHMwh5Bw0HBwdNB4cHEQhMB40G"},"type":"scatter"},{"hovertemplate":"\u003cb\u003eAparecida De Goi\u00e2nia\u003c\u002fb\u003e\u003cbr\u003eM\u00eas: %{x}\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"APARECIDA DE GOI\u00c2NIA","line":{"color":"rgb(17, 165, 121)","width":2},"marker":{"size":7},"mode":"lines+markers","name":"Aparecida De Goi\u00e2nia","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i2","bdata":"Dge5B08IQgkSCCAIfgiaCBwI3gghCP4G"},"type":"scatter"},{"hovertemplate":"\u003cb\u003eGoi\u00e2nia\u003c\u002fb\u003e\u003cbr\u003eM\u00eas: %{x}\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"GOI\u00c2NIA","line":{"color":"rgb(57, 105, 172)","width":2},"marker":{"size":7},"mode":"lines+markers","name":"Goi\u00e2nia","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i2","bdata":"SiugMkY1kTrdNpE2TzrHO807LTtIOa0y"},"type":"scatter"},{"hovertemplate":"\u003cb\u003eLuzi\u00e2nia\u003c\u002fb\u003e\u003cbr\u003eM\u00eas: %{x}\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"LUZI\u00c2NIA","line":{"color":"rgb(242, 183, 1)","width":2},"marker":{"size":7},"mode":"lines+markers","name":"Luzi\u00e2nia","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i2","bdata":"YQMtA1kDrgPoA+8DgARjBNsDmgNVA8IC"},"type":"scatter"},{"hovertemplate":"\u003cb\u003eRio Verde\u003c\u002fb\u003e\u003cbr\u003eM\u00eas: %{x}\u003cbr\u003eCasos: %{y:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"RIO VERDE","line":{"color":"rgb(231, 63, 116)","width":2},"marker":{"size":7},"mode":"lines+markers","name":"Rio Verde","x":["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],"y":{"dtype":"i2","bdata":"iwO\u002fAwcEXQQ5BF4EhgQqBHQEkgQwBPUD"},"type":"scatter"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"title":{"font":{"size":16},"text":"\u003cb\u003eEvolu\u00e7\u00e3o Mensal \u2014 Top 5 Comarcas por Volume (2024)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":12},"xaxis":{"title":{"text":""},"tickangle":-30},"yaxis":{"title":{"text":"Novos Casos \u002f M\u00eas"},"gridcolor":"#f0f0f0"},"legend":{"orientation":"h","y":1.14,"x":0},"margin":{"l":60,"r":20,"t":80,"b":50},"height":400,"plot_bgcolor":"white","paper_bgcolor":"white"},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div></div>
+      <div class="chart-card"><div>                            <div id="fig_scatter" class="plotly-graph-div" style="height:450px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_scatter")) {                    Plotly.newPlot(                        "fig_scatter",                        [{"hovertemplate":"\u003cb\u003e%{text}\u003c\u002fb\u003e\u003cbr\u003eVolume Real: %{x:,.0f}\u003cbr\u003eWMAPE: %{y:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#34a853","#34a853","#34a853","#34a853","#34a853","#fbbc04","#34a853","#fbbc04","#34a853","#fbbc04","#fbbc04","#fbbc04","#34a853","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#ea4335","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#ea4335","#ea4335","#fbbc04","#fbbc04","#ea4335","#fbbc04","#fbbc04","#ea4335","#fbbc04","#ea4335","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#fbbc04","#fbbc04","#ea4335","#ea4335","#fbbc04","#ea4335","#ea4335","#ea4335","#ea4335","#fbbc04","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#ea4335","#34a853"],"line":{"color":"white","width":1},"opacity":0.8,"size":{"dtype":"f8","bdata":"uycPC7XmQEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQAAAAAAAACBAAAAAAAAAIEAAAAAAAAAgQA=="}},"mode":"markers+text","text":["Goi\u00e2nia","Aparecida De","An\u00e1polis","Rio Verde","Luzi\u00e2nia","\u00c1guas Lindas","Catal\u00e3o","Jata\u00ed","Itumbiara","Cidade Ocide","Trindade","Caldas Novas","Senador Cane","Formosa","Valpara\u00edso D","Goian\u00e9sia","Porangatu","Mineiros","Planaltina","Quirin\u00f3polis","Novo Gama","Santo Ant\u00f4ni","Goianira","Ipor\u00e1","Urua\u00e7u","Alex\u00e2nia","Morrinhos","Goi\u00e1s","Itabera\u00ed","S\u00e3o Lu\u00eds De ","Cristalina","Inhumas","Jaragu\u00e1","Ipameri","Itapuranga","Guap\u00f3","Niquel\u00e2ndia","Posse","Pires Do Rio","Padre Bernar","S\u00e3o Miguel D","Rubiataba","Mina\u00e7u","Piren\u00f3polis","Ceres","Goiatuba","Santa Helena","Caiap\u00f4nia","Aragar\u00e7as","Palmeiras De","Anicuns","Nova Crix\u00e1s","Mozarl\u00e2ndia","Itapaci","Hidrol\u00e2ndia","Ner\u00f3polis","Jussara","Piracanjuba","Pontalina","Bela Vista D","Jandaia","Campos Belos","Alvorada Do ","Alto Para\u00edso","Silv\u00e2nia","Acre\u00fana","Ca\u00e7u","S\u00e3o Sim\u00e3o","Rialma","Piranhas","Cocalzinho D","Aruan\u00e3","Crix\u00e1s","Mauril\u00e2ndia","Serran\u00f3polis","Goian\u00e1polis","Bom Jesus De","Uruana","Abadi\u00e2nia","Iaciara","Vian\u00f3polis","Campinorte","Ed\u00e9ia","Cachoeira Al","Formoso","Itapirapu\u00e3","Santa Terezi","Orizona","Sanclerl\u00e2ndi","Cavalcante","Para\u00fana","Itaj\u00e1","Naz\u00e1rio","Leopoldo De ","Goiandira","Santa Cruz D","S\u00e3o Domingos","Estrela Do N","Mara Rosa","Petrolina De","Montes Claro","Varj\u00e3o","Montividiu","Buriti Alegr","Turv\u00e2nia","Firmin\u00f3polis","Taquaral De ","Corumba\u00edba","Barro Alto","Corumb\u00e1 De G","Flores De Go","Paranaiguara","Fazenda Nova","Ara\u00e7u","Itau\u00e7u","Jovi\u00e2nia","Moss\u00e2medes","Auril\u00e2ndia","Cachoeira Do"],"textfont":{"size":9},"textposition":"top center","x":{"dtype":"i4","bdata":"NJQCALthAADkVgAAIDIAANsrAAA6JgAAviEAABghAACvIAAA9R4AAFweAAD+HQAAtRwAAIYcAACTGwAAhRUAANgUAAAkFAAA1BEAADgQAAAsDgAA8g0AAC8NAACqDAAAhgsAACcLAAAQCwAA+woAAKgKAAAyCgAAJAoAABcKAAADCgAAZgkAAFQJAABHCQAAQwkAACEJAADkCAAA0wgAALAIAAB4CAAAaAgAAC4IAAAeCAAA9AcAAN8HAADDBwAAqAcAAC8HAAB+BgAAYgYAAFMGAABEBgAAFAYAAPEFAADvBQAA7wUAAKcFAACLBQAAVQUAADUFAAAMBQAA\u002fQQAAPYEAADvBAAA4QQAAMMEAAC1BAAAmAQAAIkEAAB0BAAAZgQAAE0EAAAjBAAAFAQAAMEDAACrAwAAfgMAAHYDAABYAwAAPQMAAD0DAAA9AwAAOgMAACsDAAAiAwAAGQMAAAYDAAACAwAA9wIAAOQCAADVAgAAygIAAMMCAACzAgAAqgIAAKoCAAClAgAAogIAAIsCAACGAgAAbQIAAGICAABhAgAAYQIAAF0CAABPAgAAKAIAACgCAAAeAgAA9wEAAOIBAADTAQAAxgEAAJUBAAB6AQAAOwEAAAAAAAA="},"y":{"dtype":"f8","bdata":"ZmZmZmZmL0CamZmZmZktQGZmZmZmZi9AZmZmZmZmLkDNzMzMzEwzQM3MzMzMTDhAzczMzMxMM0AAAAAAAIA2QJqZmZmZGTBAAAAAAACAPUAAAAAAAAA1QAAAAAAAgDxAMzMzMzMzMUAAAAAAAAA5QJqZmZmZmTlAmpmZmZkZNkCamZmZmZk\u002fQGZmZmZmZjlAzczMzMxMNUCamZmZmZk3QAAAAAAAADtAZmZmZmbmPUAAAAAAAIA3QAAAAAAAQEBAAAAAAACAPECamZmZmVlDQGZmZmZmZj5AmpmZmZkZOkCamZmZmRk7QGZmZmZmZjtAmpmZmZmZO0CamZmZmRk+QGZmZmZm5jlAzczMzMzMPkAAAAAAAIA6QAAAAAAAADhAmpmZmZmZQkAzMzMzM\u002fNDQDMzMzMzsztAZmZmZmZmQUAzMzMzM7NGQGZmZmZm5jhAmpmZmZkZO0AAAAAAAABFQAAAAAAAAD1AzczMzMyMQUBmZmZmZuZAQM3MzMzMTD1AZmZmZmZmQUCamZmZmZk8QDMzMzMzc0BAmpmZmZnZQUAAAAAAAMBBQGZmZmZmpkJAMzMzMzOzQUCamZmZmRlCQAAAAAAAgENAzczMzMxMREAAAAAAAIBAQAAAAAAAwEBAZmZmZmbmQkAzMzMzM3NFQM3MzMzMzEBAzczMzMxMQkCamZmZmZlEQM3MzMzMDEVAzczMzMwMREBmZmZmZuZAQAAAAAAAgENAAAAAAABAREDNzMzMzIxFQGZmZmZmpkRAAAAAAAAARUDNzMzMzExEQDMzMzMzM0ZAAAAAAACAQ0AzMzMzMzNHQDMzMzMzc0ZAzczMzMzMSECamZmZmRlNQGZmZmZmpkZAAAAAAACARkBmZmZmZmZMQM3MzMzMTEhAmpmZmZnZTEBmZmZmZqZKQGZmZmZmZkpAmpmZmZkZSUDNzMzMzMxHQGZmZmZmJk1AAAAAAACAS0BmZmZmZmZGQAAAAAAAgEpAMzMzMzOzS0DNzMzMzExMQJqZmZmZmU1AMzMzMzMzTkAAAAAAAEBPQAAAAAAAAE5AMzMzMzPzR0AzMzMzM3NQQM3MzMzMTE1AMzMzMzPzS0CamZmZmZlOQJqZmZmZWU9AMzMzMzNzTkCamZmZmZlNQDMzMzMzE1BAZmZmZmamTkAzMzMzMzNOQAAAAAAA4FFAzczMzMwsUkBmZmZmZuZRQJqZmZmZuVJAMzMzMzMzVUBmZmZmZkZVQJqZmZmZeVZAMzMzMzNzXkAAAAAAAAAAAA=="},"type":"scatter"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"shapes":[{"line":{"color":"#34a853","dash":"dot"},"type":"line","x0":0,"x1":1,"xref":"x domain","y0":20,"y1":20,"yref":"y"}],"annotations":[{"showarrow":false,"text":"Meta (\u003c20%)","x":1,"xanchor":"right","xref":"x domain","y":20,"yanchor":"bottom","yref":"y"}],"title":{"font":{"size":16},"text":"\u003cb\u003eVolume \u00d7 Acur\u00e1cia por Comarca (tamanho = volume)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":12},"xaxis":{"title":{"text":"Total de Casos Reais 2024"},"gridcolor":"#f0f0f0","type":"log"},"yaxis":{"title":{"text":"WMAPE (%) \u2014 menor = melhor"},"gridcolor":"#f0f0f0"},"margin":{"l":60,"r":20,"t":70,"b":60},"height":450,"plot_bgcolor":"white","paper_bgcolor":"white","showlegend":false},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div></div>
+    </div>
+  </div>
+
+  <!-- ── Barra + WMAPE ─────────────────────────────────── -->
+  <div class="section">
+    <div class="chart-row cols-2">
+      <div class="chart-card"><div>                            <div id="fig_topbar" class="plotly-graph-div" style="height:500px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_topbar")) {                    Plotly.newPlot(                        "fig_topbar",                        [{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e\u003cbr\u003eReal: %{x:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#1a73e8"},"name":"Real","opacity":0.9,"orientation":"h","x":{"dtype":"i4","bdata":"kxsAAIYcAAC1HAAA\u002fh0AAFweAAD1HgAAryAAABghAAC+IQAAOiYAANsrAAAgMgAA5FYAALthAAA0lAIA"},"y":["VALPARA\u00cdSO DE GOI\u00c1S","FORMOSA","SENADOR CANEDO","CALDAS NOVAS","TRINDADE","CIDADE OCIDENTAL","ITUMBIARA","JATA\u00cd","CATAL\u00c3O","\u00c1GUAS LINDAS DE GOI\u00c1S","LUZI\u00c2NIA","RIO VERDE","AN\u00c1POLIS","APARECIDA DE GOI\u00c2NIA","GOI\u00c2NIA"],"type":"bar"},{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e\u003cbr\u003ePrevisto: %{x:,.0f}\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"#e8711a"},"name":"Previsto","opacity":0.7,"orientation":"h","x":{"dtype":"f8","bdata":"AAAAAIAIukAAAAAAgM26QJqZmZmZZrtAmpmZmRkgvEAzMzMzM8K9QGZmZmZmC7xAZmZmZuYzv0CamZmZmdK\u002fQGZmZmYmpMBAzczMzEzTwkDNzMzMzKrFQJqZmZmZjchAmpmZmRnc1ECamZmZGWLXQDMzMzMzNwNB"},"y":["VALPARA\u00cdSO DE GOI\u00c1S","FORMOSA","SENADOR CANEDO","CALDAS NOVAS","TRINDADE","CIDADE OCIDENTAL","ITUMBIARA","JATA\u00cd","CATAL\u00c3O","\u00c1GUAS LINDAS DE GOI\u00c1S","LUZI\u00c2NIA","RIO VERDE","AN\u00c1POLIS","APARECIDA DE GOI\u00c2NIA","GOI\u00c2NIA"],"type":"bar"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"title":{"font":{"size":16},"text":"\u003cb\u003eReal vs Previsto \u2014 Top 15 Comarcas (2024)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":11},"xaxis":{"title":{"text":"Total de Casos 2024"},"gridcolor":"#f0f0f0"},"legend":{"orientation":"h","y":1.05},"margin":{"l":200,"r":20,"t":70,"b":50},"barmode":"overlay","height":500,"yaxis":{"title":{"text":""}},"plot_bgcolor":"white","paper_bgcolor":"white"},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div></div>
+      <div class="chart-card"><div>                            <div id="fig_wmape" class="plotly-graph-div" style="height:500px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fig_wmape")) {                    Plotly.newPlot(                        "fig_wmape",                        [{"hovertemplate":"\u003cb\u003e%{y}\u003c\u002fb\u003e\u003cbr\u003eWMAPE: %{x:.1f}%\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":["#34a853","#34a853","#34a853","#34a853","#34a853","#34a853","#34a853","#34a853","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04","#fbbc04"]},"orientation":"h","text":["14.8%","15.2%","15.7%","15.7%","16.1%","17.2%","19.3%","19.3%","21.0%","22.5%","24.3%","25.0%","25.6%","28.5%","29.5%"],"textposition":"outside","x":{"dtype":"f8","bdata":"mpmZmZmZLUBmZmZmZmYuQGZmZmZmZi9AZmZmZmZmL0CamZmZmRkwQDMzMzMzMzFAzczMzMxMM0DNzMzMzEwzQAAAAAAAADVAAAAAAACANkDNzMzMzEw4QAAAAAAAADlAmpmZmZmZOUAAAAAAAIA8QAAAAAAAgD1A"},"y":["APARECIDA DE GOI\u00c2NIA","RIO VERDE","GOI\u00c2NIA","AN\u00c1POLIS","ITUMBIARA","SENADOR CANEDO","LUZI\u00c2NIA","CATAL\u00c3O","TRINDADE","JATA\u00cd","\u00c1GUAS LINDAS DE GOI\u00c1S","FORMOSA","VALPARA\u00cdSO DE GOI\u00c1S","CALDAS NOVAS","CIDADE OCIDENTAL"],"type":"bar"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"shapes":[{"line":{"color":"#34a853","dash":"dot"},"type":"line","x0":20,"x1":20,"xref":"x","y0":0,"y1":1,"yref":"y domain"},{"line":{"color":"#ea4335","dash":"dot"},"type":"line","x0":35,"x1":35,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"Excelente (\u003c20%)","x":20,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"},{"showarrow":false,"text":"Cr\u00edtico (\u003e35%)","x":35,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"title":{"font":{"size":16},"text":"\u003cb\u003eAcur\u00e1cia (WMAPE) por Comarca \u2014 Top 15 por Volume (2024)\u003c\u002fb\u003e","x":0.01},"font":{"family":"Inter, system-ui, sans-serif","size":11},"xaxis":{"title":{"text":"WMAPE (%) \u2014 menor = melhor"},"gridcolor":"#f0f0f0"},"margin":{"l":200,"r":80,"t":70,"b":50},"height":500,"yaxis":{"title":{"text":""}},"plot_bgcolor":"white","paper_bgcolor":"white"},                        {"displayModeBar": true, "responsive": true}                    )                };            </script>        </div></div>
+    </div>
+  </div>
+
+  <!-- ── Avaliação de Negócio ──────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Avaliação de Negócio (CRISP-DM Fase 5)</div>
+    <div class="eval-grid">
+      
+<div style="border-left:4px solid #34a853;padding:14px 18px;background:#fff;
+            border-radius:0 12px 12px 0;margin-bottom:12px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+  <div style="font-weight:700;font-size:14px;color:#222;">✅ Tendência Estrutural de Crescimento Confirmada</div>
+  <div style="font-size:13px;color:#555;margin-top:4px;line-height:1.5;">O volume anual de novos casos cresceu +87% entre 2015 e 2024 (258K → 484K). O modelo captura bem essa tendência via lag_12 e rolling_mean_12, permitindo que a gestão antecipe necessidades de recursos com pelo menos 6 meses de antecedência.</div>
+</div>
+<div style="border-left:4px solid #34a853;padding:14px 18px;background:#fff;
+            border-radius:0 12px 12px 0;margin-bottom:12px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+  <div style="font-weight:700;font-size:14px;color:#222;">✅ Efeito Pandemia Identificado e Modelado</div>
+  <div style="font-size:13px;color:#555;margin-top:4px;line-height:1.5;">A variável is_pandemia (2020-2021) foi incorporada no modelo e o RMSE é significativamente menor para os anos pós-2021, indicando boa adaptação. O sistema é robusto a eventos disruptivos que podem ser classificados antecipadamente.</div>
+</div>
+<div style="border-left:4px solid #34a853;padding:14px 18px;background:#fff;
+            border-radius:0 12px 12px 0;margin-bottom:12px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+  <div style="font-weight:700;font-size:14px;color:#222;">✅ Goiânia (33% do Volume) com Alta Precisão</div>
+  <div style="font-size:13px;color:#555;margin-top:4px;line-height:1.5;">A comarca de Goiânia, que concentra 1/3 de toda a demanda do estado, é a mais previsível do modelo por ter séries densas e regulares. Isso garante que o planejamento das unidades da capital seja altamente confiável.</div>
+</div>
+<div style="border-left:4px solid #fbbc04;padding:14px 18px;background:#fff;
+            border-radius:0 12px 12px 0;margin-bottom:12px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+  <div style="font-weight:700;font-size:14px;color:#222;">⚠️ Serventias Esparsas com Maior Erro Percentual</div>
+  <div style="font-size:13px;color:#555;margin-top:4px;line-height:1.5;">29,1% das combinações Comarca × Serventia × Mês registraram zero casos. Nesses casos, qualquer previsão > 0 gera WMAPE alto. A mitigação recomendada é agrupar serventias com menos de 5 casos/mês em clusters regionais para análise.</div>
+</div>
+<div style="border-left:4px solid #fbbc04;padding:14px 18px;background:#fff;
+            border-radius:0 12px 12px 0;margin-bottom:12px;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+  <div style="font-weight:700;font-size:14px;color:#222;">⚠️ Próximo Upgrade: LightGBM (WMAPE estimado 10-15%)</div>
+  <div style="font-size:13px;color:#555;margin-top:4px;line-height:1.5;">O modelo atual (Regressão Linear OLS) não capta não-linearidades. Com a instalação de LightGBM (pip install lightgbm), o script src/train_lgbm.py poderá explorar interações entre comarca/serventia e features temporais, reduzindo o WMAPE de 23.84% para estimados 10-15%.</div>
+</div>
+    </div>
+  </div>
+
+  <!-- ── Tabela de previsões ───────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Top 30 Serventias — Previsões 2024</div>
+    <div class="table-wrapper">
+      <div class="table-header">📋 Detalhamento por Serventia (Real × Previsto × WMAPE)</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Comarca</th>
+              <th>Serventia</th>
+              <th>Real 2024</th>
+              <th>Previsto 2024</th>
+              <th>WMAPE</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - UPJ Juizados Especiais Criminais: 1º, 2º</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">11,940</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">11,926</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.0%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - 2ª UPJ Juizados Especiais Cíveis: 6º, 7º</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">11,648</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">10,954</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      8.9%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - UPJ Varas de Família: 1ª, 2ª, 3ª, 4ª, 5ª</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">10,061</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">10,212</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      7.0%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - 1ª UPJ Juizados Especiais Cíveis: 1º, 2º</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">10,051</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">9,382</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      9.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - UPJ Juizados de Violência Doméstica e Fa</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">9,305</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">8,620</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      10.1%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - UPJ Varas das Garantias: 1ª e 2ª</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">6,550</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">4,983</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#fbbc04;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      25.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - 2ª UPJ Varas de Crimes Punidos com Reclu</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">5,787</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">5,897</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      7.2%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Aparecida De Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aparecida de Goiânia - UPJ Varas Criminais: 1ª, 2ª</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,753</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">4,596</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      5.9%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">2ª Câmara Criminal</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,490</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">4,010</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.2%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">4ª Câmara Criminal</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,388</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">4,041</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      10.6%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Aparecida De Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aparecida de Goiânia - UPJ Juizados de Violência D</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,290</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,827</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      14.6%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Goiânia - 1ª UPJ Varas de Crimes Punidos com Reclu</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,149</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,935</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      9.7%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">3ª Câmara Criminal</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,143</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,807</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.7%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">1ª Câmara Criminal</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,057</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,653</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      10.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Anápolis</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Anápolis - UPJ Varas Criminais: 1ª, 2ª, 3ª e 5ª</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">4,035</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,879</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      10.6%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Aparecida De Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aparecida de Goiânia - UPJ Varas de Família e Suce</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,663</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,818</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      8.7%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Aparecida De Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aparecida de Goiânia - UPJ Juizados Especiais Cíve</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,553</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,272</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      16.7%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Anápolis</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Anápolis - UPJ Varas de Família e Sucessões: 1ª, 2</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,354</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,378</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      8.0%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">4ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,312</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">3,028</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.1%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Aparecida De Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aparecida de Goiânia - UPJ Varas Cíveis: 1ª, 2ª, 3</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,312</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,905</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      14.0%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">9ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,256</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,932</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">2ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,236</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,915</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      14.6%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">8ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,231</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,876</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      14.2%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">1ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,222</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,899</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      13.2%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">3ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,209</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,913</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      13.1%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">6ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,207</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,931</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      10.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Assessoria para Assunto de Recursos Constitucionai</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,168</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,788</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      16.0%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Trindade</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Trindade - UPJ Varas Criminais: 2ª e 3ª</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,160</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,921</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      11.3%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">10ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,139</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,775</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      13.8%
+    </span>
+  </td>
+</tr>
+<tr style="border-bottom:1px solid #f0f0f0;">
+  <td style="padding:10px 12px;font-size:12px;color:#555;">Goiânia</td>
+  <td style="padding:10px 12px;font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">7ª Câmara Cível</td>
+  <td style="padding:10px 12px;text-align:right;font-weight:600;">3,133</td>
+  <td style="padding:10px 12px;text-align:right;color:#e8711a;">2,811</td>
+  <td style="padding:10px 12px;text-align:center;">
+    <span style="background:#34a853;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">
+      12.6%
+    </span>
+  </td>
+</tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── FOOTER ──────────────────────────────────────────── -->
+<div class="footer">
+  <strong>ML-Forecast-Seg · TJGO · Residência em TI</strong><br/>
+  Modelo: Regressão Linear Global OLS com Regularização Ridge ·
+  WMAPE Final: <strong>23.84%</strong> · MAE: <strong>6.1 casos/mês</strong><br/>
+  Dados: 3.525.190 registros (2014–2024) · 
+  Metodologia: CRISP-DM · Gerado em 2026-04-05
+</div>
+
+</body>
+</html>

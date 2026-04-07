@@ -1,0 +1,61 @@
+{
+  "total_registros": 2620508,
+  "total_colunas": 15,
+  "periodo_inicio": "2017-01-01",
+  "periodo_fim": "2024-12-30",
+  "comarcas_unicas_total": 119,
+  "serventias_unicas_total": 1576,
+  "areas_unicas": 2,
+  "nulos_valor_causa_pct": 34.64,
+  "cardinalidade_anual": [
+    {
+      "Ano": 2017,
+      "Total de Casos": 258243,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1317,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2018,
+      "Total de Casos": 336651,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1405,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2020,
+      "Total de Casos": 344311,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1410,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2021,
+      "Total de Casos": 380564,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1408,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2022,
+      "Total de Casos": 390696,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1377,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2023,
+      "Total de Casos": 426114,
+      "Comarcas Únicas": 119,
+      "Serventias Únicas": 1368,
+      "Áreas Únicas": 2
+    },
+    {
+      "Ano": 2024,
+      "Total de Casos": 483929,
+      "Comarcas Únicas": 118,
+      "Serventias Únicas": 1358,
+      "Áreas Únicas": 2
+    }
+  ]
+}

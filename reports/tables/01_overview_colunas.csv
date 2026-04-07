@@ -1,0 +1,16 @@
+Coluna,Tipo,Nulos,Nulos (%),Únicos
+NUMERO,object,0,0.0,2620508
+DATA_RECEBIMENTO,datetime64[ns],0,0.0,2554
+PRIORIDADE,object,0,0.0,24
+SEGREDO_JUSTICA,object,0,0.0,2
+SERVENTIA,object,0,0.0,1576
+COMARCA,object,0,0.0,119
+CLASSE,object,13174,0.5,380
+ASSUNTOS,object,127,0.0,77736
+PROC_STATUS,object,0,0.0,8
+AREA,object,0,0.0,2
+AREA_ACAO,object,0,0.0,50
+VALOR_CAUSA,float64,907623,34.64,73221
+ANO,int32,0,0.0,7
+MES,int32,0,0.0,12
+ANO_MES,object,0,0.0,84
