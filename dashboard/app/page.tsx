@@ -188,7 +188,7 @@ export default function DashboardClient() {
 
         <div className="filter-group">
           <label className="filter-label">Serventia</label>
-          <select className="select-input" value={serventia} onChange={e => setServentia(e.target.value)} disabled={comarca === "Tudo"}>
+          <select className="select-input" value={serventia} onChange={e => setServentia(e.target.value)}>
             {serventiasList.map(s => (
               <option key={s} value={s}>{s === "Tudo" ? "Todas as Serventias" : s}</option>
             ))}
