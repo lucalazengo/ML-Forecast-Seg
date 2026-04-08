@@ -32,10 +32,21 @@ export default function DashboardClient() {
     });
   }, []);
 
+  // Reset serventia when comarca changes
+  useEffect(() => {
+    if (comarca !== "Tudo" && serventia !== "Tudo") {
+      // If comarca changed but serventia is not in the list, reset it
+      const validServentias = hierarquia[comarca] || [];
+      if (!validServentias.includes(serventia)) {
+        setServentia("Tudo");
+      }
+    }
+  }, [comarca, hierarquia, serventia]);
+
   // Update chart data whenever filters or fullData changes
   useEffect(() => {
     if (!fullData) return;
-    
+
     const monthsNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     let data = [];
 
@@ -48,9 +59,9 @@ export default function DashboardClient() {
            let sumPrev: number | null = null;
            let sumPMin: number | null = null;
            let sumPMax: number | null = null;
-           
+
            for(const m of monthsNames) {
-               const val = node[a][m];
+               const val = node[a]?.[m];
                if(val) {
                   if(val.historico !== null) sumHist = (sumHist || 0) + val.historico;
                   if(val.previsao !== null) sumPrev = (sumPrev || 0) + val.previsao;
