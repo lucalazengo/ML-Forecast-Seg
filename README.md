@@ -1,3 +1,11 @@
+---
+title: TJGO Forecast Dashboard
+emoji: ⚖️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
 #  ML-Forecast-Seg: Previsão de Casos Novos (TJGO)
 
 Este repositório contém o modelo de aprendizado de máquina ponta a ponta (CRISP-DM) e o dashboard operacional concebidos para inferir a entrada de novos processos nas Comarcas e Serventias do Tribunal de Justiça do Estado de Goiás.

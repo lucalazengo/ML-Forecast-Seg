@@ -1,0 +1,7 @@
+data/
+models/
+reports/
+src/
+start.sh
+dashboard/node_modules/
+.git/
