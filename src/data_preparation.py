@@ -29,8 +29,8 @@ REPORT_DIR = 'reports/tables'
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
-TRAIN_END_YEAR = 2023
-TEST_YEAR = 2024
+TRAIN_END_YEAR = 2024
+TEST_YEAR = 2025
 
 
 # Colunas corretas do arquivo 2014-2016 (13 campos: 12 padrão + 1 extra no VALOR_CAUSA)
@@ -71,10 +71,34 @@ def _load_standard(path):
     return df[_COLS_STD]
 
 
+def _load_2025(path):
+    """Carrega o arquivo 2025 com o schema novo."""
+    df = pd.read_csv(path, engine='c', on_bad_lines='skip', low_memory=False)
+    # Renomear as colunas para o schema padrao onde possivel
+    df = df.rename(columns={
+        'DATA_DISTRIBUICAO': 'DATA_RECEBIMENTO',
+        'CODG_CLASSE': 'CLASSE',
+        'CODG_ASSUNTOS': 'ASSUNTOS',
+        'NOME_AREA_ACAO': 'AREA'
+    })
+    
+    df['DATA_RECEBIMENTO'] = pd.to_datetime(
+        df['DATA_RECEBIMENTO'], format='%d/%m/%y', errors='coerce'
+    )
+    df = df.dropna(subset=['DATA_RECEBIMENTO'])
+    
+    # Preencher colunas que faltam do schema padrao com valores nulos/dummies
+    df['PROC_STATUS'] = 'N/A'
+    df['AREA_ACAO'] = df['AREA'] # Usado como equivalente
+    df['VALOR_CAUSA'] = np.nan
+    
+    return df[_COLS_STD]
+
+
 def step_31_consolidate():
-    """3.1 — Consolida todos os CSVs brutos num único DataFrame (2014–2024)."""
+    """3.1 — Consolida todos os CSVs brutos num único DataFrame (2014–2025)."""
     print("\n" + "=" * 72)
-    print(" ETAPA 3.1 — Consolidação dos CSVs Brutos (2014–2024)")
+    print(" ETAPA 3.1 — Consolidação dos CSVs Brutos (2014–2025)")
     print("=" * 72)
 
     csv_files = sorted(glob.glob(os.path.join(RAW_DIR, '*.csv')))
@@ -84,6 +108,9 @@ def step_31_consolidate():
         if '2014' in os.path.basename(f):
             chunk = _load_2014_2016(f)
             print(f"     ↳ Schema corrigido (13 cols, %d/%m/%y): {len(chunk):,} registros")
+        elif '2025' in os.path.basename(f):
+            chunk = _load_2025(f)
+            print(f"     ↳ Schema 2025: {len(chunk):,} registros")
         else:
             chunk = _load_standard(f)
         frames.append(chunk)
@@ -231,7 +258,7 @@ def step_34_feature_engineering(filled):
 
 
 def step_35_split(filled):
-    """3.5 — Split temporal Out-of-Time: treino (2017-2023) vs teste (2024)."""
+    """3.5 — Split temporal Out-of-Time: treino (2017-2024) vs teste (2025)."""
     print("\n" + "=" * 72)
     print(" ETAPA 3.5 — Split Out-of-Time (Treino / Teste)")
     print("=" * 72)
@@ -246,7 +273,8 @@ def step_35_split(filled):
     train = clean[clean['ANO'] <= TRAIN_END_YEAR].copy()
     test = clean[clean['ANO'] == TEST_YEAR].copy()
 
-    print(f"  → Treino: {len(train):,} registros (2017–{TRAIN_END_YEAR})")
+    train_start_year = train['ANO'].min()
+    print(f"  → Treino: {len(train):,} registros ({train_start_year}–{TRAIN_END_YEAR})")
     print(f"  → Teste:  {len(test):,} registros ({TEST_YEAR})")
     print(f"  → Meses no treino: {train['ANO_MES'].nunique()}")
     print(f"  → Meses no teste:  {test['ANO_MES'].nunique()}")
@@ -289,7 +317,7 @@ def step_36_export(train, test, full):
         'agrupadores': ['COMARCA', 'SERVENTIA'],
         'target': 'novos_casos',
         'split': {
-            'treino': f'2017-{TRAIN_END_YEAR}',
+            'treino': f"{train['ANO'].min()}-{TRAIN_END_YEAR}",
             'teste': str(TEST_YEAR),
             'treino_registros': len(train),
             'teste_registros': len(test),

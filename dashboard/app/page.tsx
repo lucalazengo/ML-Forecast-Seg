@@ -20,11 +20,12 @@ export default function DashboardClient() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/forecast_data.json').then(r => r.json()).catch(() => null),
+      fetch('/forecast_data_1.json').then(r => r.json()).catch(() => null),
+      fetch('/forecast_data_2.json').then(r => r.json()).catch(() => null),
       fetch('/hierarquia.json').then(r => r.json()).catch(() => null),
       fetch('/kpis.json').then(r => r.json()).catch(() => null)
-    ]).then(([d, h, k]) => {
-      if (d) setFullData(d);
+    ]).then(([d1, d2, h, k]) => {
+      if (d1 || d2) setFullData({...d1, ...d2});
       if (h) setHierarquia(h);
       if (k) setKpis(k);
       setLoading(false);

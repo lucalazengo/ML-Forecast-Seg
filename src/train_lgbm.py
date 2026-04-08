@@ -139,7 +139,7 @@ def train_lgbm(train, test):
         'WMAPE': round(wmape(y_true, y_pred), 2),
     }
     
-    print("\n  Métricas do LightGBM no Teste (2024):")
+    print("\n  Métricas do LightGBM no Teste (2025):")
     print(f"  MAE:   {metrics['MAE']:>10.2f}")
     print(f"  RMSE:  {metrics['RMSE']:>10.2f}")
     print(f"  WMAPE: {metrics['WMAPE']:>9.2f}%")
@@ -175,7 +175,7 @@ def plot_lgbm_feature_importance(model, feature_names):
 
 def export_predictions(test_df, y_pred):
     """Atualiza a tabela de previsões com o resultado do LightGBM."""
-    path = f'{TBL_DIR}/07_previsoes_2024.csv'
+    path = f'{TBL_DIR}/07_previsoes_2025.csv'
     
     # Se a tabela da fase 4 existir, fazemos o merge, senão criamos uma nova
     if os.path.exists(path):

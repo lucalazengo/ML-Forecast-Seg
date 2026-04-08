@@ -2,4 +2,5 @@ modelo,MAE,RMSE,WMAPE
 M0 — Naïve Sazonal,8.82,26.88,34.54
 M1 — Linear Global OLS,6.09,14.4,23.84
 M2 — Ensemble (α=0.0),6.09,14.4,23.84
-M3 — LightGBM,5.88,15.57,23.04
+M3 — LightGBM,14.73,67.79,27.43
+M4 — LightGBM + Exotic Features,10.16,45.62,18.92

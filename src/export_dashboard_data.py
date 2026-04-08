@@ -6,8 +6,8 @@ import numpy as np
 def generate_dashboard_data():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     processed_path = os.path.join(project_root, "data", "processed", "full_prepared_v2.csv")
-    prev_2024_path = os.path.join(project_root, "reports", "tables", "07_previsoes_2024.csv")
-    prev_2025_path = os.path.join(project_root, "reports", "tables", "09_previsoes_2025.csv")
+    prev_2025_path = os.path.join(project_root, "reports", "tables", "07_previsoes_2025.csv")
+    prev_2026_path = os.path.join(project_root, "reports", "tables", "09_previsoes_2026.csv")
     
     print(f"Lendo dados históricos de {processed_path}...")
     df_hist = pd.read_csv(processed_path, usecols=['ANO_MES', 'COMARCA', 'SERVENTIA', 'novos_casos'])
@@ -20,20 +20,20 @@ def generate_dashboard_data():
     df_hist['previsao_max'] = np.nan
     
     print(f"Lendo dados de previsões...")
-    df_prev_2024 = pd.read_csv(prev_2024_path)
     df_prev_2025 = pd.read_csv(prev_2025_path)
+    df_prev_2026 = pd.read_csv(prev_2026_path)
     
     # Padronizar colunas das previsões
     # As previsões têm 'previsto_m3_lgbm' mas se houver nulo usa 'previsto_m1_linear' ou 'previsto_ensemble'
-    for df_prev, is_2025 in [(df_prev_2024, False), (df_prev_2025, True)]:
-        if is_2025:
+    for df_prev, is_future in [(df_prev_2025, False), (df_prev_2026, True)]:
+        if is_future:
             df_prev['previsao'] = df_prev['previsao_novos_casos']
             df_prev['novos_casos'] = np.nan
         else:
             if 'previsto_m3_lgbm' in df_prev.columns:
-                df_prev['previsao'] = df_prev['previsto_m3_lgbm'].fillna(df_prev['previsto_ensemble'])
+                df_prev['previsao'] = df_prev['previsto_m3_lgbm'].fillna(df_prev.get('previsto_ensemble', np.nan))
             else:
-                df_prev['previsao'] = df_prev['previsto_ensemble']
+                df_prev['previsao'] = df_prev.get('previsto_ensemble', np.nan)
         
         # O erro base WMAPE geral foi ~24% e o R2, etc.
         # Criamos o min/max usando uma margem de +/- 15% como placeholder visual realista baseado no erro top comarcas
@@ -44,10 +44,10 @@ def generate_dashboard_data():
         df_prev['MES'] = df_prev['ANO_MES'].str[5:7]
     
     # Garantir que novos_casos nas previsões se chame historico (se não tiver dados reais pode ser NaN)
-    df_prev_combined = pd.concat([df_prev_2024, df_prev_2025])[ ['ANO_MES', 'ANO', 'MES', 'COMARCA', 'SERVENTIA', 'novos_casos', 'previsao', 'previsao_min', 'previsao_max'] ]
+    df_prev_combined = pd.concat([df_prev_2025, df_prev_2026])[ ['ANO_MES', 'ANO', 'MES', 'COMARCA', 'SERVENTIA', 'novos_casos', 'previsao', 'previsao_min', 'previsao_max'] ]
     
-    # Combinar histórico puramente (< 2024)
-    df_hist_only = df_hist[df_hist['ANO'] < '2024']
+    # Combinar histórico puramente (< 2025)
+    df_hist_only = df_hist[df_hist['ANO'] < '2025']
     df_hist_only = df_hist_only[ ['ANO_MES', 'ANO', 'MES', 'COMARCA', 'SERVENTIA', 'novos_casos', 'previsao', 'previsao_min', 'previsao_max'] ]
     
     df_final = pd.concat([df_hist_only, df_prev_combined])
@@ -108,21 +108,38 @@ def generate_dashboard_data():
     
     for c in output:
         for s in output[c]:
-            for ano in ['2024', '2025']:
+            for ano in ['2025', '2026']:
                 if ano in output[c][s]:
                     for mes in output[c][s][ano]:
-                        if ano == '2025':
+                        if ano == '2026':
                             output[c][s][ano][mes]['historico'] = None
-                        elif ano == '2024':
-                            # Se for muito próximo de 0 na previsão mas é 2024 e o histórico tá 0... 
-                            # As previsões já vieram do "novos_casos" em 2024, então não precisamos fazer nada a menos que falte dados.
+                        elif ano == '2025':
+                            # Se for muito próximo de 0 na previsão mas é 2025 e o histórico tá 0... 
+                            # As previsões já vieram do "novos_casos" em 2025, então não precisamos fazer nada a menos que falte dados.
                             pass
                             
-    out_file = os.path.join(project_root, "dashboard", "public", "forecast_data.json")
-    print(f"Salvando em {out_file}...")
-    with open(out_file, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False)
-    print("Salvo com sucesso!")
+    comarcas = list(output.keys())
+    mid = len(comarcas) // 2
+    out1 = {c: output[c] for c in comarcas[:mid]}
+    out2 = {c: output[c] for c in comarcas[mid:]}
+
+    out_file1 = os.path.join(project_root, "dashboard", "public", "forecast_data_1.json")
+    out_file2 = os.path.join(project_root, "dashboard", "public", "forecast_data_2.json")
+    
+    print(f"Salvando em chunks...")
+    with open(out_file1, "w", encoding="utf-8") as f:
+        json.dump(out1, f, separators=(',', ':'))
+    with open(out_file2, "w", encoding="utf-8") as f:
+        json.dump(out2, f, separators=(',', ':'))
+    print("Salvo com sucesso em chunks!")
+    
+    # Remover arquivos antigos se existirem
+    old_out_file = os.path.join(project_root, "dashboard", "public", "forecast_data.json")
+    old_gz_file = os.path.join(project_root, "dashboard", "public", "forecast_data.json.gz")
+    if os.path.exists(old_out_file):
+        os.remove(old_out_file)
+    if os.path.exists(old_gz_file):
+        os.remove(old_gz_file)
 
     # Extrair lista de comarcas/serventias estruturada
     hierarquia = {}
