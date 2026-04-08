@@ -37,6 +37,7 @@ O projeto possui uma infraestrutura 100% conteinerizada (Docker Compose) que sup
 - Sobe um container `data-updater` rodando **Python 3**.
 - O container exporta toda a inferência e malha calculada pelo modelo para dentro das pastas visuais `/dashboard/public/data`.
 - Finalizado o processamento quantitativo, ele levanta o Painel de Controle (Dashboard) em **Node/Nextjs** rodando a porta `3000`.
+- **Para garantir que os dados mais recentes sejam exibidos, o `data-updater` executa os scripts de preparação (`data_preparation.py`), treinamento (`enhance_with_exotic_features.py`), previsão (`predict_2026.py`) e exportação para o dashboard (`export_dashboard_data.py`).**
 
 **Acesse no navegador:** [http://localhost:3000](http://localhost:3000)
 

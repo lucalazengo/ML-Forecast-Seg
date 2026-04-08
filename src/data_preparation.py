@@ -29,8 +29,8 @@ REPORT_DIR = 'reports/tables'
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
-TRAIN_END_YEAR = 2024
-TEST_YEAR = 2025
+TRAIN_END_YEAR = 2025
+TEST_YEAR = 2026
 
 
 # Colunas corretas do arquivo 2014-2016 (13 campos: 12 padrão + 1 extra no VALOR_CAUSA)

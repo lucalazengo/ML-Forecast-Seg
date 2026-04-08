@@ -3,9 +3,8 @@
 ### Metodologia: CRISP-DM — Fase 4 (Evolução) + Fase 5 (Avaliação Comparativa)
 
 ---
-
 > [!IMPORTANT]
-> Este documento formaliza a implementação do modelo **M3 — LightGBM Regressor** como evolução dos modelos baseline (M0, M1, M2), detalhando a arquitetura, os hiperparâmetros, a engenharia de features, os resultados comparativos e o impacto no pipeline de inferência para 2025.
+> Este documento formaliza a implementação do modelo **M4 — LightGBM Regressor com Features Exóticas** como evolução dos modelos baseline (M0, M1, M2) e do M3, detalhando a arquitetura, os hiperparâmetros, a engenharia de features, os resultados comparativos e o impacto no pipeline de inferência para 2026.
 
 ---
 
@@ -52,7 +51,7 @@ graph TD
     F --> G["train_full.csv (94.560 linhas)"]
     F --> H["test_full.csv (18.912 linhas)"]
     G --> I["train_lgbm.py"]
-    H --> I
+    H --> I["enhance_with_exotic_features.py"]
     I --> J["M3 — LightGBM Regressor"]
     J --> K["lgbm_model_v1.txt"]
     K --> L["predict_2025.py (Inferência Recursiva)"]
@@ -60,7 +59,8 @@ graph TD
     
     style J fill:#2d7d46,color:#fff
     style K fill:#1a73e8,color:#fff
-    style M fill:#e8711a,color:#fff
+    style L fill:#e8711a,color:#fff
+    style M fill:#1a73e8,color:#fff
 ```
 
 ### 2.2. Features Utilizadas
