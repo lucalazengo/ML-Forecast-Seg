@@ -154,6 +154,7 @@ export default function DashboardClient() {
             <option value="2023">2023</option>
             <option value="2024">2024 (Teste)</option>
             <option value="2025">2025 (Futuro)</option>
+            <option value="2026">2026 (Previsão)</option>
           </select>
         </div>
         
