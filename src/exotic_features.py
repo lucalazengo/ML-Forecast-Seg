@@ -23,7 +23,8 @@ from scipy.interpolate import interp1d
 def add_fourier_features(df, group_cols, target='novos_casos', periods=[12, 6, 4, 3], max_order=3):
     """
     Adiciona features Fourier para capturar múltiplos ciclos sazonais.
-    Útil para capturar ciclos legais complexos (recesso forense, períodos judiciais, etc).
+    IMPORTANTE: Usa índice temporal ABSOLUTO (meses desde época fixa)
+    para garantir alinhamento de fase entre treino e inferência.
 
     Períodos típicos do judiciário:
     - 12 meses: ciclo anual completo
@@ -35,11 +36,13 @@ def add_fourier_features(df, group_cols, target='novos_casos', periods=[12, 6, 4
 
     df = df.sort_values(group_cols + ['ANO_MES_DT']).reset_index(drop=True)
 
+    # Índice temporal absoluto: meses desde jan/2014 (início da série)
+    # Isso garante que a fase seja idêntica entre treino e inferência
+    t = (df['ANO_MES_DT'].dt.year - 2014) * 12 + (df['ANO_MES_DT'].dt.month - 1)
+    t = t.values
+
     for period in periods:
         for order in range(1, max_order + 1):
-            # Criar sequência de tempo (indexado por grupo)
-            t = df.groupby(group_cols).cumcount().values
-
             col_sin = f'fourier_{period}m_sin_{order}'
             col_cos = f'fourier_{period}m_cos_{order}'
 
@@ -87,23 +90,25 @@ def add_detrended_features(df, group_cols, target='novos_casos', windows=[3, 6, 
     Adiciona features baseadas em detrending (remoção de trend local).
     O resíduo vs trend captura anomalias e desvios do padrão esperado.
 
-    Método: Local trend removal via differencing de baixa ordem
+    Método: Local trend removal via differencing de baixa ordem.
+    IMPORTANTE: Usa shift(1) para evitar data leakage.
     """
     print("  ✔ Adicionando Detrended Features...")
 
     for window in windows:
-        # Trend local via rolling mean
         col_trend = f'trend_{window}'
         col_detrended = f'detrended_{window}'
         col_deviation = f'deviation_{window}'
 
+        # Trend local via rolling mean COM shift(1) — somente valores passados
         df[col_trend] = (
             df.groupby(group_cols)[target]
-            .transform(lambda x: x.rolling(window, min_periods=1).mean())
+            .transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
         )
 
-        # Detrended = valor - trend
-        df[col_detrended] = df[target] - df[col_trend]
+        # Detrended = lag_1 - trend (compara último valor conhecido com a tendência)
+        lag1 = df.groupby(group_cols)[target].shift(1)
+        df[col_detrended] = lag1 - df[col_trend]
 
         # Deviation = abs(detrended), captura magnitude de anomalias
         df[col_deviation] = np.abs(df[col_detrended])
@@ -113,10 +118,9 @@ def add_detrended_features(df, group_cols, target='novos_casos', windows=[3, 6, 
 
 def add_local_level_slope(df, group_cols, target='novos_casos', alpha=0.3, beta=0.1):
     """
-    Implementa suavização exponencial dupla (Holt).
-    Captura:
-    - level: nível subjacente da série
-    - slope: tendência local
+    Implementa suavização exponencial dupla (Holt) COM shift(1).
+    IMPORTANTE: O level/slope em t são calculados usando dados até t-1,
+    evitando data leakage. O valor em t é a "previsão" do Holt para t.
 
     Parâmetros:
     - alpha (0.3): peso para level update (maior = mais reativo)
@@ -136,12 +140,19 @@ def add_local_level_slope(df, group_cols, target='novos_casos', alpha=0.3, beta=
         level = y[0] if len(y) > 0 else 0
         slope = (y[1] - y[0]) if len(y) > 1 else 0
 
-        level_series = [level]
-        slope_series = [slope]
+        # Para t=0, não temos passado — usar 0
+        level_series = [0.0]
+        slope_series = [0.0]
 
-        for i in range(1, len(y)):
+        # Para t=1, usamos apenas y[0]
+        if len(y) > 1:
+            level_series.append(level)
+            slope_series.append(slope)
+
+        # Para t>=2, level/slope refletem dados até t-1
+        for i in range(2, len(y)):
             level_prev = level
-            level = alpha * y[i] + (1 - alpha) * (level + slope)
+            level = alpha * y[i - 1] + (1 - alpha) * (level + slope)
             slope = beta * (level - level_prev) + (1 - beta) * slope
 
             level_series.append(level)
@@ -159,10 +170,9 @@ def add_local_level_slope(df, group_cols, target='novos_casos', alpha=0.3, beta=
 def add_multiplicative_seasonal_indices(df, group_cols, target='novos_casos', period=12):
     """
     Calcula índices sazonais multiplicativos por grupo.
-    Mais sofisticado que dummies: captura 'força' da sazonalidade.
+    IMPORTANTE: Usa expanding mean com shift(1) para evitar data leakage.
 
-    Índice = (valor observado) / (média do período)
-    Previsão com sazonalidade = trend × índice sazonal
+    Índice = (média sazonal passada) / (média geral passada)
     """
     print("  ✔ Adicionando Multiplicative Seasonal Indices...")
 
@@ -171,16 +181,18 @@ def add_multiplicative_seasonal_indices(df, group_cols, target='novos_casos', pe
     # Agrupar por mês-do-ano dentro de cada grupo
     df['mes_within_year'] = df['MES'] % period
 
-    # Calcular média por mes_within_year em cada grupo
+    # Calcular média sazonal usando apenas valores passados (expanding com shift)
     seasonal_means = (
         df.groupby(group_cols + ['mes_within_year'])[target]
-        .transform('mean')
+        .transform(lambda x: x.shift(1).expanding(min_periods=1).mean())
     )
 
-    # Média geral por grupo (para normalizar)
-    group_means = df.groupby(group_cols)[target].transform('mean')
+    # Média geral por grupo usando apenas valores passados
+    group_means = df.groupby(group_cols)[target].transform(
+        lambda x: x.shift(1).expanding(min_periods=1).mean()
+    )
 
-    # Índice sazonal = (média sazonal) / (média geral)
+    # Índice sazonal = (média sazonal passada) / (média geral passada)
     df['seasonal_index'] = (seasonal_means / (group_means + 1e-6)).fillna(1.0)
 
     # Log do índice (mais estável para multiplicativo)
@@ -214,8 +226,8 @@ def add_volatility_dynamics(df, group_cols, target='novos_casos'):
 
 def add_rate_of_change_features(df, group_cols, target='novos_casos', periods=[1, 3, 6, 12]):
     """
-    Adiciona taxa de mudança (momentum).
-    roc = (y[t] - y[t-n]) / y[t-n]
+    Adiciona taxa de mudança (momentum) usando SOMENTE valores passados.
+    roc = (y[t-1] - y[t-1-n]) / y[t-1-n]
 
     Captura:
     - Crescimento/decrescimento
@@ -224,13 +236,17 @@ def add_rate_of_change_features(df, group_cols, target='novos_casos', periods=[1
     """
     print("  ✔ Adicionando Rate-of-Change Features...")
 
+    # Usar lag_1 como referência (último valor conhecido) em vez do valor atual
+    lag1 = df.groupby(group_cols)[target].shift(1)
+
     for period in periods:
         col_roc = f'roc_{period}'
         col_roc_pct = f'roc_pct_{period}'
 
-        shifted = df.groupby(group_cols)[target].shift(period)
+        # shift(period) a partir do lag_1 = shift(1 + period) do original
+        shifted = df.groupby(group_cols)[target].shift(1 + period)
 
-        df[col_roc] = df[target] - shifted
+        df[col_roc] = lag1 - shifted
         df[col_roc_pct] = (df[col_roc] / (shifted + 1e-6) * 100).fillna(0)
 
     return df
@@ -239,25 +255,31 @@ def add_rate_of_change_features(df, group_cols, target='novos_casos', periods=[1
 def add_cross_sectional_features(df, group_cols=['COMARCA', 'SERVENTIA'], target='novos_casos'):
     """
     Features baseadas em padrões cross-sectional.
+    IMPORTANTE: Todas usam shift(1) ou expanding mean para evitar data leakage.
 
     Captura:
-    - Média da comarca (efeito regional)
+    - Média histórica da comarca (efeito regional)
     - Desvio relativo da serventia vs comarca
     - Ranking relativo
     """
     print("  ✔ Adicionando Cross-Sectional Features...")
 
-    # Média por comarca (efeito regional)
-    df['comarca_mean'] = df.groupby('COMARCA')[target].transform('mean')
+    # Média por comarca usando apenas valores passados (expanding mean com shift)
+    df['comarca_mean'] = df.groupby('COMARCA')[target].transform(
+        lambda x: x.shift(1).expanding(min_periods=1).mean()
+    )
     df['comarca_mean_lag'] = df.groupby('COMARCA')[target].transform(
         lambda x: x.shift(1).rolling(12, min_periods=1).mean()
     )
 
-    # Desvio relativo: serventia vs comarca
-    df['deviation_from_comarca'] = df[target] - df['comarca_mean']
+    # Desvio relativo: lag_1 da serventia vs média histórica da comarca
+    lag1 = df.groupby(group_cols)[target].shift(1)
+    df['deviation_from_comarca'] = lag1 - df['comarca_mean']
 
-    # Média por serventia
-    df['serventia_mean'] = df.groupby('SERVENTIA')[target].transform('mean')
+    # Média por serventia usando apenas valores passados
+    df['serventia_mean'] = df.groupby('SERVENTIA')[target].transform(
+        lambda x: x.shift(1).expanding(min_periods=1).mean()
+    )
 
     # Razão: serventia vs comarca (normaliza efeitos regionais)
     df['serventia_comarca_ratio'] = (df['serventia_mean'] / (df['comarca_mean'] + 1e-6)).fillna(1.0)
@@ -268,23 +290,21 @@ def add_cross_sectional_features(df, group_cols=['COMARCA', 'SERVENTIA'], target
 def add_anomaly_features(df, group_cols, target='novos_casos', threshold_std=2.5):
     """
     Detecta anomalias e cria features baseadas em outliers.
-
-    Útil para:
-    - Sinalizar períodos atípicos
-    - Regularizar previsões em regiões de risco
-    - Detectar mudanças estruturais
+    IMPORTANTE: Usa shift(1) para evitar data leakage — detecta se o valor
+    ANTERIOR era anômalo, não o valor atual.
     """
     print("  ✔ Adicionando Anomaly Features...")
 
     df = df.sort_values(group_cols + ['ANO_MES_DT']).reset_index(drop=True)
 
-    # Z-score por grupo (últimos 12 meses para evitar contamination)
+    # Z-score por grupo usando apenas valores passados (shift + rolling)
     def detect_anomalies(x):
         if len(x) < 2:
             return np.zeros(len(x))
-        mean = x.rolling(12, min_periods=1).mean()
-        std = x.rolling(12, min_periods=1).std()
-        z_score = np.abs((x - mean) / (std + 1e-6))
+        shifted = x.shift(1)
+        mean = shifted.rolling(12, min_periods=1).mean()
+        std = shifted.rolling(12, min_periods=1).std()
+        z_score = np.abs((shifted - mean) / (std + 1e-6))
         return (z_score > threshold_std).astype(int)
 
     df['is_anomaly'] = (
@@ -292,7 +312,7 @@ def add_anomaly_features(df, group_cols, target='novos_casos', threshold_std=2.5
         .transform(detect_anomalies)
     )
 
-    # Count de anomalias recentes (últimos 6 meses)
+    # Count de anomalias recentes (últimos 6 meses, já baseado em dados passados)
     df['anomaly_count_6m'] = (
         df.groupby(group_cols)['is_anomaly']
         .transform(lambda x: x.rolling(6, min_periods=1).sum())

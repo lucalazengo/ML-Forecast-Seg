@@ -7,7 +7,7 @@
   ],
   "target": "novos_casos",
   "split": {
-    "treino": "2017-2024",
+    "treino": "2015-2024",
     "teste": "2025",
     "treino_registros": 172908,
     "teste_registros": 19212

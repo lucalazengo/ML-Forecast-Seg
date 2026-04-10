@@ -16,8 +16,10 @@ interface ForecastChartProps {
   data: any[];
 }
 
+const fmt = (n: number | null | undefined) =>
+  n != null ? n.toLocaleString('pt-BR') : '—';
+
 export default function ForecastChart({ data }: ForecastChartProps) {
-  // Configuração visual para o tooltip ser escuro com glassmorphism
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -33,16 +35,16 @@ export default function ForecastChart({ data }: ForecastChartProps) {
           <p style={{ margin: 0, fontWeight: 600, color: '#a0aab2', marginBottom: '8px' }}>{label}</p>
           {payload.map((entry: any, index: number) => {
             if (entry.dataKey === 'errorBand') {
-               return (
-                  <p key={index} style={{ margin: '4px 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
-                    Margem de Erro: <span style={{fontWeight: 'bold', color: '#fff'}}>{entry.value[0]} a {entry.value[1]}</span>
-                  </p>
-               );
+              return (
+                <p key={index} style={{ margin: '4px 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                  Margem de Erro: <span style={{ fontWeight: 'bold', color: '#fff' }}>{fmt(entry.value?.[0])} a {fmt(entry.value?.[1])}</span>
+                </p>
+              );
             }
             return (
               <p key={index} style={{ margin: '4px 0', color: entry.dataKey === 'historico' ? '#10b981' : '#3b82f6' }}>
                 {entry.dataKey === 'historico' ? 'Real' : 'Previsão (LightGBM)'}:{' '}
-                <span style={{fontWeight: 'bold', color: '#fff'}}>{entry.value} casos</span>
+                <span style={{ fontWeight: 'bold', color: '#fff' }}>{fmt(entry.value)} casos</span>
               </p>
             );
           })}
@@ -52,10 +54,15 @@ export default function ForecastChart({ data }: ForecastChartProps) {
     return null;
   };
 
+  const yTickFormatter = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+    return String(value);
+  };
+
   return (
     <div style={{ width: '100%', height: 350 }}>
       {data.length === 0 ? (
-        <div style={{display:'flex', height:'100%', alignItems:'center', justifyContent:'center', color:'var(--text-secondary)'}}>
+        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
           Aguardando seleção de filtros...
         </div>
       ) : (
@@ -66,34 +73,36 @@ export default function ForecastChart({ data }: ForecastChartProps) {
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="mes" stroke="#a0aab2" tick={{ fill: '#a0aab2' }} axisLine={false} tickLine={false} />
-            <YAxis stroke="#a0aab2" tick={{ fill: '#a0aab2' }} axisLine={false} tickLine={false} />
+            <YAxis stroke="#a0aab2" tick={{ fill: '#a0aab2' }} axisLine={false} tickLine={false} tickFormatter={yTickFormatter} />
             <Tooltip content={<CustomTooltip />} />
-            
-            <Area 
-               type="monotone" 
-               dataKey="errorBand" 
-               fill="#3b82f6" 
-               fillOpacity={0.15} 
-               stroke="none"
+
+            <Area
+              type="monotone"
+              dataKey="errorBand"
+              fill="#3b82f6"
+              fillOpacity={0.15}
+              stroke="none"
             />
-            
-            <Line 
-              type="monotone" 
-              dataKey="historico" 
-              stroke="#10b981" 
+
+            <Line
+              type="monotone"
+              dataKey="historico"
+              stroke="#10b981"
               strokeWidth={3}
               dot={{ r: 4, fill: '#0f111a', stroke: '#10b981', strokeWidth: 2 }}
               activeDot={{ r: 6, fill: '#10b981' }}
+              connectNulls={false}
             />
-            
-            <Line 
-              type="monotone" 
-              dataKey="previsao" 
-              stroke="#3b82f6" 
+
+            <Line
+              type="monotone"
+              dataKey="previsao"
+              stroke="#3b82f6"
               strokeWidth={3}
               strokeDasharray="5 5"
               dot={{ r: 4, fill: '#0f111a', stroke: '#3b82f6', strokeWidth: 2 }}
               activeDot={{ r: 6, fill: '#3b82f6' }}
+              connectNulls={false}
             />
           </ComposedChart>
         </ResponsiveContainer>

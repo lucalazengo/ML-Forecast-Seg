@@ -70,12 +70,17 @@ def predict_future_recursive(horizon=12):
     hist['ANO_MES_DT'] = pd.to_datetime(hist['ANO_MES'])
     hist = hist[hist['ANO_MES_DT'].dt.year >= 2024].copy()
     hist = hist[['ANO_MES', 'COMARCA', 'SERVENTIA', 'novos_casos', 'area_predominante']]
+    # Remover duplicatas no histórico (manter primeira ocorrência)
+    hist = hist.drop_duplicates(subset=['ANO_MES', 'COMARCA', 'SERVENTIA'], keep='first')
     
     model = lgb.Booster(model_file=MODEL_PATH)
     comarca_cats, serventia_cats = get_original_categories()
 
     # Extrai as combinações únicas (Comarcas x Serventias x Área) do nosso acervo
-    pairs = hist[['COMARCA', 'SERVENTIA', 'area_predominante']].drop_duplicates()
+    # Usar apenas COMARCA e SERVENTIA para evitar duplicatas causadas por múltiplas áreas
+    pairs = hist.groupby(['COMARCA', 'SERVENTIA']).agg(
+        area_predominante=('area_predominante', lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else 'Cível')
+    ).reset_index()
     
     # Cria a lista de meses a prever
     future_months = [f'2026-{str(m).zfill(2)}' for m in range(1, horizon + 1)]
@@ -111,7 +116,7 @@ def predict_future_recursive(horizon=12):
 
         df = generate_calendar_features(df)
 
-        # ✨ Aplicar features exóticas
+        # ✨ Aplicar features exóticas (agora sem leakage)
         df_with_exotic, _ = apply_all_exotic_features(
             df,
             group_cols=['COMARCA', 'SERVENTIA'],
@@ -136,8 +141,10 @@ def predict_future_recursive(horizon=12):
             preds = model.predict(X_pred)
             preds = np.clip(preds, 0, None) # Não existem casos negativos
 
-            # Atualizar a tabela principal para que o próximo mês possa usar essa previsão como 'lag'
-            df.loc[mask, 'novos_casos'] = preds
+            # Atualizar a tabela principal com as previsões para retroalimentar o próximo mês
+            # IMPORTANTE: usar o índice do df original (não df_with_exotic)
+            mask_df = df['ANO_MES'] == month
+            df.loc[mask_df, 'novos_casos'] = preds
         except Exception as e:
             print(f"     ❌ Erro na predição: {str(e)[:100]}")
             print(f"     Expected features: {len(FEATURE_COLS)}, Got: {X_pred.shape[1]}")
